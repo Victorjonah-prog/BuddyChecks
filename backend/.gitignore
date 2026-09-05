@@ -1,0 +1,7 @@
+node_modules
+
+# Environment variables — never commit secrets
+.env
+
+# Prisma generated client — reproducible via `prisma generate`
+generated/

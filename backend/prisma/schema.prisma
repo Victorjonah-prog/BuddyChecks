@@ -1,0 +1,136 @@
+// BuddyChecks — Prisma Schema
+// Pair-based accountability app for mental health habits
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum PairStatus {
+  PENDING
+  ACTIVE
+  ENDED
+}
+
+enum HabitFrequency {
+  DAILY
+}
+
+enum CheckinStatus {
+  DONE
+  MISSED
+  PARTIAL
+}
+
+enum EncouragementType {
+  PRESET_EMOJI
+  PRESET_MESSAGE
+  CUSTOM_TEXT
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(uuid())
+  auth0Id   String   @unique
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  // Relations
+  pairsAsUserA     Pair[]          @relation("PairUserA")
+  pairsAsUserB     Pair[]          @relation("PairUserB")
+  habitsCreated    Habit[]         @relation("HabitCreatedBy")
+  checkins         Checkin[]
+  encouragementsSent     Encouragement[] @relation("EncouragementFrom")
+  encouragementsReceived Encouragement[] @relation("EncouragementTo")
+  invitesCreated   Invite[]
+}
+
+model Pair {
+  id        String     @id @default(uuid())
+  userAId   String
+  userBId   String
+  status    PairStatus @default(PENDING)
+  createdAt DateTime   @default(now())
+
+  // Relations
+  userA  User    @relation("PairUserA", fields: [userAId], references: [id])
+  userB  User    @relation("PairUserB", fields: [userBId], references: [id])
+  habits Habit[]
+}
+
+model Habit {
+  id          String         @id @default(uuid())
+  pairId      String
+  title       String
+  createdById String
+  frequency   HabitFrequency @default(DAILY)
+  createdAt   DateTime       @default(now())
+
+  // Relations
+  pair      Pair      @relation(fields: [pairId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("HabitCreatedBy", fields: [createdById], references: [id])
+  checkins  Checkin[]
+}
+
+model Checkin {
+  id        String        @id @default(uuid())
+  habitId   String
+  userId    String
+  date      DateTime      @db.Date
+  status    CheckinStatus
+  note      String?
+  createdAt DateTime      @default(now())
+
+  // Relations
+  habit         Habit           @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user          User            @relation(fields: [userId], references: [id])
+  encouragements Encouragement[]
+
+  // One check-in per user per habit per day
+  @@unique([habitId, userId, date])
+}
+
+model Encouragement {
+  id         String            @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  checkinId  String?
+  type       EncouragementType
+  content    String
+  createdAt  DateTime          @default(now())
+
+  // Relations
+  fromUser User     @relation("EncouragementFrom", fields: [fromUserId], references: [id])
+  toUser   User     @relation("EncouragementTo", fields: [toUserId], references: [id])
+  checkin  Checkin? @relation(fields: [checkinId], references: [id])
+}
+
+model Invite {
+  id          String       @id @default(uuid())
+  code        String       @unique
+  createdById String
+  status      InviteStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+
+  // Relations
+  createdBy User @relation(fields: [createdById], references: [id])
+}
