@@ -10,6 +10,12 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* BuddyChecks brand colors — available as bg-brand-teal, text-brand-sage, etc. */
+  --color-brand-teal: #0f9488;
+  --color-brand-sage: #84a98c;
+  --color-brand-tint: #f0f5f3;
+  --color-brand-text: #1a1a1a;
 }
 
 @media (prefers-color-scheme: dark) {
