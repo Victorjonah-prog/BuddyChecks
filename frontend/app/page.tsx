@@ -1,21 +1,14 @@
 import { auth0 } from "@/lib/auth0";
-import HomeClient from "./HomeClient";
+import { redirect } from "next/navigation";
 import Image from "next/image";
 
 // Server Component: reads the session on the server and passes it down.
-// getSession() is free here — no extra network call, just decrypts the cookie.
+// Authenticated users are sent to /dashboard; the landing page is guests-only.
 export default async function Home() {
   const session = await auth0.getSession();
 
   if (session) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-        <HomeClient
-          name={session.user.name ?? session.user.email ?? "there"}
-          email={session.user.email ?? ""}
-        />
-      </main>
-    );
+    redirect("/dashboard");
   }
 
   return (

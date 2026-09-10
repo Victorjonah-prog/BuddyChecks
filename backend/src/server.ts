@@ -3,6 +3,8 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { PrismaClient } from "../generated/prisma";
 import { verifyAuth } from "./plugins/auth";
+import { inviteRoutes } from "./routes/invites";
+import { pairRoutes } from "./routes/pairs";
 
 // ---------------------------------------------------------------------------
 // Augment FastifyInstance so TypeScript knows about fastify.prisma
@@ -129,6 +131,12 @@ export async function buildApp() {
 
     return reply.code(201).send(newUser);
   });
+
+  // -------------------------------------------------------------------------
+  // Invite & pair routes
+  // -------------------------------------------------------------------------
+  await app.register(inviteRoutes);
+  await app.register(pairRoutes);
 
   return app;
 }
