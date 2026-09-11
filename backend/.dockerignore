@@ -1,0 +1,17 @@
+# Dependencies — installed fresh during image build
+node_modules
+
+# Compiled output — rebuilt during image build
+dist
+
+# Prisma generated client — rebuilt via `prisma generate` during build
+generated
+
+# Environment variables — injected at runtime, never baked into the image
+.env
+.env.*
+!.env.example
+
+# Dev tooling
+*.log
+npm-debug.log*

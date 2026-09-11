@@ -35,6 +35,8 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
       invite={invite}
       inviteError={inviteError}
       isLoggedIn={!!session}
+      userName={session?.user.name ?? session?.user.email}
+      userEmail={session?.user.email}
     />
   );
 }

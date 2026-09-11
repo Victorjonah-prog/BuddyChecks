@@ -6,3 +6,6 @@ backend/node_modules
 
 # Prisma generated client
 backend/generated/
+
+# Compiled TypeScript output
+backend/dist/

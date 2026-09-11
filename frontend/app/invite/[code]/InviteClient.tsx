@@ -2,7 +2,7 @@
 
 import { getAccessToken } from "@auth0/nextjs-auth0/client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 
 interface Props {
@@ -10,14 +10,52 @@ interface Props {
   invite: { code: string; status: string; inviterName: string } | null;
   inviteError: string | null;
   isLoggedIn: boolean;
+  userName?: string;
+  userEmail?: string;
 }
 
-type AcceptState = "idle" | "accepting" | "error";
+type AcceptState = "idle" | "syncing" | "accepting" | "error";
 
-export default function InviteClient({ code, invite, inviteError, isLoggedIn }: Props) {
+export default function InviteClient({
+  code,
+  invite,
+  inviteError,
+  isLoggedIn,
+  userName,
+  userEmail,
+}: Props) {
   const router = useRouter();
   const [acceptState, setAcceptState] = useState<AcceptState>("idle");
   const [acceptError, setAcceptError] = useState<string | null>(null);
+  const hasSynced = useRef(false);
+
+  // Sync user when logged in
+  useEffect(() => {
+    if (!isLoggedIn || !userName || !userEmail || hasSynced.current) return;
+    hasSynced.current = true;
+
+    async function syncUser() {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ name: userName, email: userEmail }),
+        });
+
+        if (!res.ok) {
+          console.error("Sync failed:", await res.text());
+        }
+      } catch (err) {
+        console.error("Sync error:", err);
+      }
+    }
+
+    syncUser();
+  }, [isLoggedIn, userName, userEmail]);
 
   async function acceptInvite() {
     setAcceptState("accepting");

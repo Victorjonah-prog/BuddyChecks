@@ -5,6 +5,7 @@ import { PrismaClient } from "../generated/prisma";
 import { verifyAuth } from "./plugins/auth";
 import { inviteRoutes } from "./routes/invites";
 import { pairRoutes } from "./routes/pairs";
+import { habitRoutes } from "./routes/habits";
 
 // ---------------------------------------------------------------------------
 // Augment FastifyInstance so TypeScript knows about fastify.prisma
@@ -21,22 +22,31 @@ declare module "fastify" {
 // ---------------------------------------------------------------------------
 
 export async function buildApp() {
+  const isProd = process.env.NODE_ENV === "production";
+
   const app = Fastify({
-    logger: {
-      transport: {
-        target: "pino-pretty",
-        options: { colorize: true },
-      },
-    },
+    logger: isProd
+      ? true  // plain JSON logs in production — pino-pretty is a devDependency
+      : {
+          transport: {
+            target: "pino-pretty",
+            options: { colorize: true },
+          },
+        },
   });
 
   // -------------------------------------------------------------------------
-  // CORS — allow the Next.js dev frontend on localhost:3000
+  // CORS — in production, allow only the explicitly configured frontend URL.
+  // Set FRONTEND_URL=https://your-app.vercel.app in the platform env vars.
+  // In development, fall back to localhost:3000.
   // -------------------------------------------------------------------------
+  const allowedOrigin =
+    isProd
+      ? (process.env.FRONTEND_URL ?? false)   // false = block all origins if unset
+      : (process.env.FRONTEND_URL ?? "http://localhost:3000");
+
   await app.register(cors, {
-    origin: process.env.NODE_ENV === "production"
-      ? false           // tighten this up when you have a real domain
-      : "http://localhost:3000",
+    origin: allowedOrigin,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -137,6 +147,11 @@ export async function buildApp() {
   // -------------------------------------------------------------------------
   await app.register(inviteRoutes);
   await app.register(pairRoutes);
+
+  // -------------------------------------------------------------------------
+  // Habit & check-in routes
+  // -------------------------------------------------------------------------
+  await app.register(habitRoutes);
 
   return app;
 }

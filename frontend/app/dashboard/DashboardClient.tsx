@@ -2,18 +2,37 @@
 
 import { getAccessToken } from "@auth0/nextjs-auth0/client";
 import { useEffect, useRef, useState } from "react";
+import CheckinCard, { Habit, TodayStatus } from "./CheckinCard";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface Props {
   name: string;
   email: string;
   pairs: Array<{ id: string; partner: { name: string } }>;
   pairError: string | null;
+  initialHabits: Habit[];
+  initialToday: TodayStatus | null;
 }
 
 type SyncState = "idle" | "syncing" | "done" | "error";
 type InviteState = "idle" | "creating" | "created" | "error";
+type HabitCreateState = "idle" | "submitting" | "error";
 
-export default function DashboardClient({ name, email, pairs, pairError }: Props) {
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export default function DashboardClient({
+  name,
+  email,
+  pairs,
+  pairError,
+  initialHabits,
+  initialToday,
+}: Props) {
   const [syncState, setSyncState] = useState<SyncState>("idle");
   const [syncError, setSyncError] = useState<string | null>(null);
   const hasSynced = useRef(false);
@@ -23,8 +42,18 @@ export default function DashboardClient({ name, email, pairs, pairError }: Props
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const activePair = pairs.length > 0 ? pairs[0] : null;
+  const [habits, setHabits] = useState<Habit[]>(initialHabits);
+  const [today, setToday] = useState<TodayStatus | null>(initialToday);
+  const [habitTitle, setHabitTitle] = useState("");
+  const [habitCreateState, setHabitCreateState] = useState<HabitCreateState>("idle");
+  const [habitCreateError, setHabitCreateError] = useState<string | null>(null);
 
+  const activePair = pairs.length > 0 ? pairs[0] : null;
+  const activeHabit = habits.length > 0 ? habits[0] : null;
+
+  // -------------------------------------------------------------------------
+  // Sync user on mount
+  // -------------------------------------------------------------------------
   useEffect(() => {
     if (hasSynced.current) return;
     hasSynced.current = true;
@@ -59,6 +88,9 @@ export default function DashboardClient({ name, email, pairs, pairError }: Props
     syncUser();
   }, [name, email]);
 
+  // -------------------------------------------------------------------------
+  // Create invite
+  // -------------------------------------------------------------------------
   async function createInvite() {
     setInviteState("creating");
     setInviteError(null);
@@ -96,10 +128,64 @@ export default function DashboardClient({ name, email, pairs, pairError }: Props
     });
   }
 
+  // -------------------------------------------------------------------------
+  // Create habit
+  // -------------------------------------------------------------------------
+  async function createHabit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!habitTitle.trim()) return;
+
+    setHabitCreateState("submitting");
+    setHabitCreateError(null);
+
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/habits`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ title: habitTitle.trim() }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+
+      const newHabit: Habit = await res.json();
+      setHabits([newHabit]);
+      setHabitTitle("");
+      setHabitCreateState("idle");
+
+      // Immediately fetch today's status for the new habit
+      // (will be null/null since no one has checked in yet — that's fine)
+      try {
+        const todayRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/habits/${newHabit.id}/checkins/today`,
+          { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
+        );
+        if (todayRes.ok) {
+          setToday(await todayRes.json());
+        }
+      } catch {
+        // Non-fatal
+      }
+    } catch (err) {
+      console.error("POST /habits failed:", err);
+      setHabitCreateError(err instanceof Error ? err.message : "Unknown error");
+      setHabitCreateState("error");
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
   return (
     <div className="flex flex-col min-h-screen bg-brand-tint">
       {/* Header */}
-      <header className="w-full border-b border-gray-200 bg-white">
+      <header className="fixed top-0 inset-x-0 z-10 border-b border-gray-200 bg-white">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <a href="/" className="text-lg font-semibold text-brand-text">
             BuddyChecks
@@ -114,7 +200,9 @@ export default function DashboardClient({ name, email, pairs, pairError }: Props
       </header>
 
       {/* Main */}
-      <main className="flex-1 w-full max-w-3xl mx-auto px-6 py-12">
+      <main className="flex-1 w-full max-w-3xl mx-auto px-6 pt-28 pb-12 space-y-6">
+
+        {/* Account card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <h1 className="text-2xl font-semibold text-brand-text mb-2">
             Welcome, {name}!
@@ -208,6 +296,68 @@ export default function DashboardClient({ name, email, pairs, pairError }: Props
             </div>
           )}
         </div>
+
+        {/* ------------------------------------------------------------------ */}
+        {/* Habit / check-in section — only shown when paired                  */}
+        {/* ------------------------------------------------------------------ */}
+        {activePair && (
+          <>
+            {/* No habit yet — create form */}
+            {!activeHabit && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                <h2 className="text-lg font-semibold text-brand-text mb-2">
+                  Create your first habit
+                </h2>
+                <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+                  Pick something small and sustainable — this habit will be shared
+                  with {activePair.partner.name}.
+                </p>
+
+                <form onSubmit={createHabit} className="space-y-4">
+                  <input
+                    type="text"
+                    value={habitTitle}
+                    onChange={(e) => setHabitTitle(e.target.value)}
+                    placeholder="e.g. 10-minute walk, journal entry…"
+                    maxLength={120}
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-brand-text placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-teal/30"
+                  />
+
+                  {habitCreateState === "error" && habitCreateError && (
+                    <p className="text-sm text-red-500">{habitCreateError}</p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={habitCreateState === "submitting" || !habitTitle.trim()}
+                    className="w-full py-3 rounded-xl bg-brand-teal text-white text-sm font-medium hover:bg-brand-teal/90 transition-colors disabled:opacity-50"
+                  >
+                    {habitCreateState === "submitting" ? "Creating…" : "Create habit"}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Habit exists — check-in card */}
+            {activeHabit && today && (
+              <CheckinCard
+                habit={activeHabit}
+                partnerName={activePair.partner.name}
+                initialToday={today}
+              />
+            )}
+
+            {/* Habit exists but today data failed to load */}
+            {activeHabit && !today && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                <p className="text-sm text-gray-400">
+                  Couldn&rsquo;t load today&rsquo;s check-in status. Please refresh the page.
+                </p>
+              </div>
+            )}
+          </>
+        )}
       </main>
     </div>
   );
