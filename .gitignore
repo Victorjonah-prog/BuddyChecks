@@ -1,5 +1,9 @@
 # Environment variables — never commit secrets
 backend/.env
+frontend/.env.local
+frontend/.env*.local
+**/.env.local
+**/.env.production
 
 # Node modules
 backend/node_modules
