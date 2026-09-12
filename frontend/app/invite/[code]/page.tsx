@@ -18,10 +18,14 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
     if (res.ok) {
       invite = await res.json();
     } else if (res.status === 404) {
-      inviteError = "Invite not found";
+      inviteError = "not_found";
     } else if (res.status === 410) {
       const body = await res.json().catch(() => ({}));
-      inviteError = body.error ?? "This invite is no longer valid";
+      // Distinguish already-accepted from expired
+      inviteError =
+        typeof body.error === "string" && body.error.includes("expired")
+          ? "expired"
+          : "already_accepted";
     } else {
       inviteError = `Failed to load invite (HTTP ${res.status})`;
     }

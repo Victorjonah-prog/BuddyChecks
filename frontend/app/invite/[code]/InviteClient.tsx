@@ -161,11 +161,26 @@ export default function InviteClient({
                 </svg>
               </div>
               <h1 className="text-xl font-semibold text-brand-text">
-                {inviteError === "Invite not found"
-                  ? "Invite not found"
-                  : "Invalid invite"}
+                {inviteError === "not_found" && "Invalid invite"}
+                {inviteError === "already_accepted" && "Already used"}
+                {inviteError === "expired" && "Invite expired"}
+                {inviteError !== "not_found" &&
+                  inviteError !== "already_accepted" &&
+                  inviteError !== "expired" &&
+                  "Something went wrong"}
               </h1>
-              <p className="text-sm text-gray-600">{inviteError}</p>
+              <p className="text-sm text-gray-600">
+                {inviteError === "not_found" &&
+                  "This invite link doesn't exist or may have been mistyped."}
+                {inviteError === "already_accepted" &&
+                  "This invite has already been accepted — it was only meant for one person."}
+                {inviteError === "expired" &&
+                  "This invite link has expired. Ask your buddy to send a new one."}
+                {inviteError !== "not_found" &&
+                  inviteError !== "already_accepted" &&
+                  inviteError !== "expired" &&
+                  inviteError}
+              </p>
               <a
                 href="/"
                 className="inline-block mt-4 px-6 py-2 rounded-lg bg-brand-teal text-white text-sm font-medium hover:bg-brand-sage transition-colors"
@@ -234,8 +249,36 @@ export default function InviteClient({
                   )}
 
                   {acceptState === "error" && acceptError && (
-                    <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm text-left">
-                      {acceptError}
+                    <div className="space-y-3 text-center">
+                      <div className="w-12 h-12 mx-auto rounded-full bg-red-50 flex items-center justify-center">
+                        <svg
+                          className="w-6 h-6 text-red-500"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </div>
+                      <p className="font-semibold text-brand-text text-sm">
+                        {acceptError.includes("already paired") && "You're already paired"}
+                        {acceptError.includes("own invite") && "That's your own invite"}
+                        {!acceptError.includes("already paired") &&
+                          !acceptError.includes("own invite") &&
+                          "Couldn't accept invite"}
+                      </p>
+                      <p className="text-sm text-gray-600">{acceptError}</p>
+                      <a
+                        href="/"
+                        className="inline-block mt-2 px-6 py-2 rounded-lg bg-brand-teal text-white text-sm font-medium hover:bg-brand-sage transition-colors"
+                      >
+                        Go home
+                      </a>
                     </div>
                   )}
                 </div>
