@@ -15,7 +15,7 @@ export default async function Home() {
     <div className="flex flex-col min-h-screen font-[family-name:var(--font-geist-sans)]" style={{ color: "#1a1a1a" }}>
 
       {/* ── Header ── */}
-      <header className="w-full border-b border-gray-100 bg-white">
+      <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Use icon mark + wordmark text so the logo reads clearly at nav height.
               The stacked SVG lockup (icon above wordmark) needs ~128px to be

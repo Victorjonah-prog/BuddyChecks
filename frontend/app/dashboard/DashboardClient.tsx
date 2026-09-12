@@ -217,13 +217,6 @@ export default function DashboardClient({
 
           <hr className="my-6 border-gray-100" />
 
-          {/* Error loading pair status */}
-          {pairError && (
-            <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm mb-6">
-              {pairError}
-            </div>
-          )}
-
           {/* Already paired */}
           {activePair && (
             <div className="space-y-4">
@@ -242,10 +235,18 @@ export default function DashboardClient({
             </div>
           )}
 
-          {/* Not paired yet */}
-          {!activePair && !pairError && (
+          {/* Not paired yet — show invite UI regardless of any pair-fetch error */}
+          {!activePair && (
             <div className="space-y-4">
               <h2 className="text-lg font-medium text-brand-text">Get started</h2>
+
+              {/* Show a non-blocking notice if pair status failed to load for
+                  a reason other than "new user" — the invite UI still works. */}
+              {pairError && (
+                <p className="text-xs text-gray-400">
+                  (Could not confirm pair status — {pairError})
+                </p>
+              )}
               <p className="text-sm text-gray-600 leading-relaxed">
                 You&rsquo;re not paired yet. Create an invite link and share it with
                 a friend to start your accountability journey together.

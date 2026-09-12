@@ -11,7 +11,9 @@ export async function pairRoutes(app: FastifyInstance) {
     });
 
     if (!caller) {
-      return reply.code(404).send({ error: "User not found — call POST /sync first" });
+      // Brand-new user: no record yet (sync runs client-side after first render).
+      // This is a normal state — return an empty list, not an error.
+      return reply.code(200).send([]);
     }
 
     const pairs = await app.prisma.pair.findMany({
