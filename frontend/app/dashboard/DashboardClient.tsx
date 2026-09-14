@@ -20,6 +20,15 @@ interface Props {
 type SyncState = "idle" | "syncing" | "done" | "error";
 type InviteState = "idle" | "creating" | "created" | "error";
 type HabitCreateState = "idle" | "submitting" | "error";
+type Duration = "1_WEEK" | "2_WEEKS" | "1_MONTH" | "3_MONTHS" | "ONGOING";
+
+const DURATION_OPTIONS: { value: Duration; label: string }[] = [
+  { value: "1_WEEK", label: "1 week" },
+  { value: "2_WEEKS", label: "2 weeks" },
+  { value: "1_MONTH", label: "1 month" },
+  { value: "3_MONTHS", label: "3 months" },
+  { value: "ONGOING", label: "Ongoing" },
+];
 
 // ---------------------------------------------------------------------------
 // Component
@@ -45,11 +54,17 @@ export default function DashboardClient({
   const [habits, setHabits] = useState<Habit[]>(initialHabits);
   const [today, setToday] = useState<TodayStatus | null>(initialToday);
   const [habitTitle, setHabitTitle] = useState("");
+  const [habitDuration, setHabitDuration] = useState<Duration>("ONGOING");
   const [habitCreateState, setHabitCreateState] = useState<HabitCreateState>("idle");
   const [habitCreateError, setHabitCreateError] = useState<string | null>(null);
 
   const activePair = pairs.length > 0 ? pairs[0] : null;
   const activeHabit = habits.length > 0 ? habits[0] : null;
+  // Show create form only when there's no habit at all, or the current one ENDED
+  // (and the user clicked "Start a new habit").
+  const [showCreateForm, setShowCreateForm] = useState(
+    !activeHabit || activeHabit.status === "ENDED"
+  );
 
   // -------------------------------------------------------------------------
   // Sync user on mount
@@ -146,7 +161,7 @@ export default function DashboardClient({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ title: habitTitle.trim() }),
+        body: JSON.stringify({ title: habitTitle.trim(), duration: habitDuration }),
       });
 
       if (!res.ok) {
@@ -157,10 +172,11 @@ export default function DashboardClient({
       const newHabit: Habit = await res.json();
       setHabits([newHabit]);
       setHabitTitle("");
+      setHabitDuration("ONGOING");
       setHabitCreateState("idle");
+      setShowCreateForm(false);
 
       // Immediately fetch today's status for the new habit
-      // (will be null/null since no one has checked in yet — that's fine)
       try {
         const todayRes = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/habits/${newHabit.id}/checkins/today`,
@@ -303,8 +319,8 @@ export default function DashboardClient({
         {/* ------------------------------------------------------------------ */}
         {activePair && (
           <>
-            {/* No habit yet — create form */}
-            {!activeHabit && (
+            {/* No habit yet, or user clicked "Start a new habit" — create form */}
+            {showCreateForm && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
                 <h2 className="text-lg font-semibold text-brand-text mb-2">
                   Create your first habit
@@ -315,15 +331,28 @@ export default function DashboardClient({
                 </p>
 
                 <form onSubmit={createHabit} className="space-y-4">
-                  <input
-                    type="text"
-                    value={habitTitle}
-                    onChange={(e) => setHabitTitle(e.target.value)}
-                    placeholder="e.g. 10-minute walk, journal entry…"
-                    maxLength={120}
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-brand-text placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-teal/30"
-                  />
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={habitTitle}
+                      onChange={(e) => setHabitTitle(e.target.value)}
+                      placeholder="e.g. 10-minute walk, journal entry…"
+                      maxLength={120}
+                      required
+                      className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm text-brand-text placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-teal/30"
+                    />
+                    <select
+                      value={habitDuration}
+                      onChange={(e) => setHabitDuration(e.target.value as Duration)}
+                      className="px-3 py-3 rounded-xl border border-gray-200 text-sm text-brand-text bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/30 shrink-0"
+                    >
+                      {DURATION_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   {habitCreateState === "error" && habitCreateError && (
                     <p className="text-sm text-red-500">{habitCreateError}</p>
@@ -340,17 +369,28 @@ export default function DashboardClient({
               </div>
             )}
 
-            {/* Habit exists — check-in card */}
-            {activeHabit && today && (
+            {/* Habit exists and ACTIVE — check-in card */}
+            {!showCreateForm && activeHabit && activeHabit.status === "ACTIVE" && today && (
               <CheckinCard
                 habit={activeHabit}
                 partnerName={activePair.partner.name}
                 initialToday={today}
+                onStartNew={() => setShowCreateForm(true)}
+              />
+            )}
+
+            {/* Habit exists and ENDED — read-only ended card */}
+            {!showCreateForm && activeHabit && activeHabit.status === "ENDED" && today && (
+              <CheckinCard
+                habit={activeHabit}
+                partnerName={activePair.partner.name}
+                initialToday={today}
+                onStartNew={() => setShowCreateForm(true)}
               />
             )}
 
             {/* Habit exists but today data failed to load */}
-            {activeHabit && !today && (
+            {!showCreateForm && activeHabit && !today && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
                 <p className="text-sm text-gray-400">
                   Couldn&rsquo;t load today&rsquo;s check-in status. Please refresh the page.

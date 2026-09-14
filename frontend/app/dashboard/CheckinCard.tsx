@@ -13,6 +13,8 @@ export interface Habit {
   pairId: string;
   createdById: string;
   frequency: string;
+  status: "ACTIVE" | "ENDED";
+  endDate: string | null;
   createdAt: string;
 }
 
@@ -27,6 +29,7 @@ interface Props {
   habit: Habit;
   partnerName: string;
   initialToday: TodayStatus;
+  onStartNew: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,7 +114,7 @@ function PartnerStatus({
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function CheckinCard({ habit, partnerName, initialToday }: Props) {
+export default function CheckinCard({ habit, partnerName, initialToday, onStartNew }: Props) {
   const [today, setToday] = useState<TodayStatus>(initialToday);
   const [submitting, setSubmitting] = useState(false);
   const [note, setNote] = useState("");
@@ -120,6 +123,29 @@ export default function CheckinCard({ habit, partnerName, initialToday }: Props)
 
   const myStatus = today.you.status;
   const alreadyCheckedIn = myStatus !== null;
+
+  // -------------------------------------------------------------------------
+  // Render: ended habit — read-only state
+  // -------------------------------------------------------------------------
+  if (habit.status === "ENDED") {
+    return (
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 space-y-4">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Habit ended</p>
+          <h2 className="text-lg font-semibold text-brand-text">{habit.title}</h2>
+        </div>
+        <p className="text-sm text-gray-500">
+          This habit has ended. Great work showing up!
+        </p>
+        <button
+          onClick={onStartNew}
+          className="w-full py-3 rounded-xl bg-brand-teal text-white text-sm font-medium hover:bg-brand-teal/90 transition-colors"
+        >
+          Start a new habit
+        </button>
+      </div>
+    );
+  }
 
   // -------------------------------------------------------------------------
   // Refresh today's data from the server
@@ -263,7 +289,7 @@ export default function CheckinCard({ habit, partnerName, initialToday }: Props)
             . Add a note? <span className="text-gray-400">(optional)</span>
           </p>
           <textarea
-            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-brand-teal/30 placeholder-gray-300"
+            className="w-full text-sm text-gray-900 border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-brand-teal/30 placeholder-gray-300"
             rows={2}
             placeholder="How did it go?"
             value={note}

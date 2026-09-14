@@ -25,6 +25,11 @@ enum HabitFrequency {
   DAILY
 }
 
+enum HabitStatus {
+  ACTIVE
+  ENDED
+}
+
 enum CheckinStatus {
   DONE
   MISSED
@@ -83,6 +88,8 @@ model Habit {
   title       String
   createdById String
   frequency   HabitFrequency @default(DAILY)
+  status      HabitStatus    @default(ACTIVE)
+  endDate     DateTime?
   createdAt   DateTime       @default(now())
 
   // Relations
